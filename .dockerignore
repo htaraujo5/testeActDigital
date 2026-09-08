@@ -1,0 +1,13 @@
+**/node_modules/
+**/bin/
+**/obj/
+**/.vs/
+**/.git/
+**/docs/
+**/*.md
+**/*.pdf
+**/page-*.png
+**/tests/
+**/web/node_modules/
+**/web/dist/
+

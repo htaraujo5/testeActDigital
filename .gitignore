@@ -1,0 +1,11 @@
+**/.vs/
+**/bin/
+**/obj/
+**/.idea/
+**/TestResults/
+*.user
+*.suo
+.env
+node_modules/
+page-*.png
+*.log

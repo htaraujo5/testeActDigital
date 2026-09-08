@@ -1,0 +1,24 @@
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+
+COPY AccountManager.slnx ./
+COPY src/AccountManager.Domain/*.csproj src/AccountManager.Domain/
+COPY src/AccountManager.Application/*.csproj src/AccountManager.Application/
+COPY src/AccountManager.Infrastructure/*.csproj src/AccountManager.Infrastructure/
+COPY src/AccountManager.Api/*.csproj src/AccountManager.Api/
+
+RUN dotnet restore src/AccountManager.Api/AccountManager.Api.csproj
+
+COPY src/AccountManager.Domain/ src/AccountManager.Domain/
+COPY src/AccountManager.Application/ src/AccountManager.Application/
+COPY src/AccountManager.Infrastructure/ src/AccountManager.Infrastructure/
+COPY src/AccountManager.Api/ src/AccountManager.Api/
+
+RUN dotnet publish src/AccountManager.Api/AccountManager.Api.csproj -c Release -o /app/publish /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
+WORKDIR /app
+ENV ASPNETCORE_URLS=http://+:8080
+EXPOSE 8080
+COPY --from=build /app/publish .
+ENTRYPOINT ["dotnet", "AccountManager.Api.dll"]

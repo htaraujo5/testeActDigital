@@ -1,0 +1,198 @@
+services:
+  postgres-write:
+    image: postgres:16-alpine
+    container_name: am-postgres-write
+    environment:
+      POSTGRES_USER: account
+      POSTGRES_PASSWORD: account
+      POSTGRES_DB: account_manager
+    command:
+      - postgres
+      - -c
+      - wal_level=replica
+      - -c
+      - hot_standby=on
+      - -c
+      - max_wal_senders=10
+      - -c
+      - max_replication_slots=10
+      - -c
+      - hot_standby_feedback=on
+      - -c
+      - listen_addresses=*
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_write_data:/var/lib/postgresql/data
+      - ./docker/postgres/primary/01-replication.sh:/docker-entrypoint-initdb.d/01-replication.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U account -d account_manager"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - account-net
+
+  postgres-read:
+    image: postgres:16-alpine
+    container_name: am-postgres-read
+    depends_on:
+      postgres-write:
+        condition: service_healthy
+    environment:
+      POSTGRES_USER: account
+      POSTGRES_PASSWORD: account
+      POSTGRES_DB: account_manager
+      PRIMARY_HOST: postgres-write
+      PRIMARY_PORT: 5432
+      REPLICATOR_USER: replicator
+      REPLICATOR_PASSWORD: replpass
+      PGDATA: /var/lib/postgresql/data
+    entrypoint: ["/bin/bash", "/replica-entrypoint.sh"]
+    ports:
+      - "5433:5432"
+    volumes:
+      - pg_read_data:/var/lib/postgresql/data
+      - ./docker/postgres/replica/entrypoint.sh:/replica-entrypoint.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U account -d account_manager || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+      start_period: 20s
+    networks:
+      - account-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: am-redis
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - account-net
+
+  api-1:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: am-api-1
+    depends_on:
+      postgres-write:
+        condition: service_healthy
+      postgres-read:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ApiInstanceId: api-1
+      EnableSwagger: "true"
+      ConnectionStrings__WriteDb: Host=postgres-write;Port=5432;Database=account_manager;Username=account;Password=account
+      ConnectionStrings__ReadDb: Host=postgres-read;Port=5432;Database=account_manager;Username=account;Password=account
+      ConnectionStrings__Redis: redis:6379
+      Jwt__Issuer: AccountManager
+      Jwt__Audience: AccountManager.Api
+      Jwt__SigningKey: AccountManager_Dev_Signing_Key_ChangeInProd_32+
+      Jwt__ExpirationMinutes: "60"
+    networks:
+      - account-net
+
+  api-2:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: am-api-2
+    depends_on:
+      postgres-write:
+        condition: service_healthy
+      postgres-read:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ApiInstanceId: api-2
+      EnableSwagger: "true"
+      ConnectionStrings__WriteDb: Host=postgres-write;Port=5432;Database=account_manager;Username=account;Password=account
+      ConnectionStrings__ReadDb: Host=postgres-read;Port=5432;Database=account_manager;Username=account;Password=account
+      ConnectionStrings__Redis: redis:6379
+      Jwt__Issuer: AccountManager
+      Jwt__Audience: AccountManager.Api
+      Jwt__SigningKey: AccountManager_Dev_Signing_Key_ChangeInProd_32+
+      Jwt__ExpirationMinutes: "60"
+    networks:
+      - account-net
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.gateway
+    container_name: am-gateway
+    depends_on:
+      - api-1
+      - api-2
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      UpstreamApis__BaseAddresses__0: http://api-1:8080
+      UpstreamApis__BaseAddresses__1: http://api-2:8080
+    networks:
+      - account-net
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: am-prometheus
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - api-1
+      - api-2
+    networks:
+      - account-net
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: am-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - account-net
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: am-web
+    depends_on:
+      - gateway
+    ports:
+      - "3000:80"
+    networks:
+      - account-net
+
+volumes:
+  pg_write_data:
+  pg_read_data:
+  grafana_data:
+
+networks:
+  account-net:
+    driver: bridge

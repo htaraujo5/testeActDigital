@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AccountManager.Api/AccountManager.Api.csproj" />
+    <Project Path="src/AccountManager.Application/AccountManager.Application.csproj" />
+    <Project Path="src/AccountManager.Domain/AccountManager.Domain.csproj" />
+    <Project Path="src/AccountManager.Gateway/AccountManager.Gateway.csproj" />
+    <Project Path="src/AccountManager.Infrastructure/AccountManager.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AccountManager.Application.Tests/AccountManager.Application.Tests.csproj" />
+    <Project Path="tests/AccountManager.Domain.Tests/AccountManager.Domain.Tests.csproj" />
+    <Project Path="tests/AccountManager.Integration.Tests/AccountManager.Integration.Tests.csproj" />
+  </Folder>
+</Solution>
