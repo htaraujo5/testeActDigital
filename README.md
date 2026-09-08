@@ -6,11 +6,6 @@ Solução .NET 8 para controle de movimentações de uma **conta empresarial**: 
 
 **Repositório:** _(cole aqui a URL do GitHub público após criar o remote)_
 
-Documentação complementar:
-- [Arquitetura detalhada](docs/ARQUITETURA.md)
-- [Style guide do front](docs/STYLE_GUIDE_CONTA_DIGITAL.md)
-- [Plano de implementação](docs/PLANO-IMPLEMENTACAO.md)
-
 ---
 
 ## Sumário
@@ -45,7 +40,7 @@ Documentação complementar:
 | API C# / .NET | OK |
 | Testes | OK |
 | Boas práticas de desenvolvimento | OK |
-| Explicação da estrutura | OK (este README + `docs/`) |
+| Explicação da estrutura | OK (este README) |
 | README com instruções de execução | OK |
 | Documentação no projeto | OK |
 | Repositório público no GitHub | A publicar |
