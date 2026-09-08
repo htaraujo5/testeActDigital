@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  backend:
+    name: Backend build & tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        run: dotnet restore AccountManager.slnx
+
+      - name: Build
+        run: dotnet build AccountManager.slnx -c Release --no-restore
+
+      - name: Unit tests (Domain)
+        run: >
+          dotnet test tests/AccountManager.Domain.Tests/AccountManager.Domain.Tests.csproj
+          -c Release --no-build --verbosity normal
+
+      - name: Unit tests (Application)
+        run: >
+          dotnet test tests/AccountManager.Application.Tests/AccountManager.Application.Tests.csproj
+          -c Release --no-build --verbosity normal
+
+      - name: Integration tests
+        # Testcontainers precisa do Docker do runner (já disponível no ubuntu-latest)
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: true
+        run: >
+          dotnet test tests/AccountManager.Integration.Tests/AccountManager.Integration.Tests.csproj
+          -c Release --no-build --verbosity normal
+
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build

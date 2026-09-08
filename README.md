@@ -287,6 +287,15 @@ dotnet test tests/AccountManager.Integration.Tests
 
 > Os testes de integração sobem Postgres e Redis via **Testcontainers** (Docker necessário).
 
+### CI (GitHub Actions)
+
+Workflow em [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — sem deploy (somente CI):
+
+- **Backend:** restore → build Release → testes Domain, Application e Integration  
+- **Frontend:** `npm ci` → `npm run build`
+
+Dispara em `push`/`pull_request` nas branches `main`/`master` e via *workflow_dispatch*.
+
 ---
 
 ## 7. Decisões técnicas
